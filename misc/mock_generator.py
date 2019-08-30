@@ -7,7 +7,7 @@ def generate_sine_wave(output_path, size):
 	np.random.seed(2)
 
 	label_array = [1, 2]
-	N = 100
+	N = 10
 	
 	dataset = []
 	for i in range(size):
@@ -18,6 +18,7 @@ def generate_sine_wave(output_path, size):
 	with open(output_path, "w") as f:
 		for row in dataset:
 			f.writelines(row + "\n")
+
 
 def create_sine_wave(N, label):
 	T = label
