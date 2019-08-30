@@ -27,6 +27,12 @@ class CNN(nn.Module):
             nn.ReLU(),
             nn.MaxPool1d(self.config.max_sen_len - self.config.kernel_size[2] + 1)
         )
+        self.conv4 = nn.Sequential(
+            nn.Conv1d(in_channels=self.config.embed_size, out_channels=self.config.num_channels,
+                      kernel_size=self.config.kernel_size[3]),
+            nn.ReLU(),
+            nn.MaxPool1d(self.config.max_sen_len - self.config.kernel_size[3] + 1)
+                                                            )
 
         self.dropout = nn.Dropout(self.config.dropout_keep)
 
@@ -47,8 +53,9 @@ class CNN(nn.Module):
         conv_out1 = self.conv1(embedded_sent).squeeze(2)  # shape=(64, num_channels, 1) (squeeze 1)
         conv_out2 = self.conv2(embedded_sent).squeeze(2)
         conv_out3 = self.conv3(embedded_sent).squeeze(2)
+        conv_out4 = self.conv4(embedded_sent).squeeze(2)
 
-        all_out = torch.cat((conv_out1, conv_out2, conv_out3), 1)
+        all_out = torch.cat((conv_out1, conv_out2, conv_out3, conv_out4), 1)
         final_feature_map = self.dropout(all_out)
         return self.fc(final_feature_map)
 

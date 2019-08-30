@@ -29,13 +29,13 @@ def train_cnn(train_file="data/data.train", test_file="data/data.test"):
 
     for i in range(config.max_epochs):
         print("Epoch: {}".format(i))
-        train_loss, val_accuracy = model.run_epoch(iter(train_dataset_loader), iter(test_dataset_loader), i)
+        train_loss, val_accuracy = model.run_epoch(train_dataset_loader, test_dataset_loader, i)
         train_losses.append(train_loss)
         val_accuracies.append(val_accuracy)
 
-    train_acc = evaluate_model(model, iter(train_dataset_loader))
-    val_acc = evaluate_model(model, iter(test_dataset_loader))
-    test_acc = evaluate_model(model, iter(test_dataset_loader))
+    train_acc = evaluate_model(model, train_dataset_loader)
+    val_acc = evaluate_model(model, test_dataset_loader)
+    test_acc = evaluate_model(model, test_dataset_loader)
 
     print('Final Training Accuracy: {:.4f}'.format(train_acc))
     print('Final Validation Accuracy: {:.4f}'.format(val_acc))
