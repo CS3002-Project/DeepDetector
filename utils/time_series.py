@@ -6,9 +6,10 @@ from torch.utils.data import Dataset
 
 class TimeSeries(Dataset):
 
-    def __init__(self, path):
+    def __init__(self, path, max_ts_size):
         self.path = path
         self.size = len(os.listdir(path))
+        self.max_ts_size = max_ts_size
 
     def __len__(self):
         return self.size
@@ -22,7 +23,9 @@ class TimeSeries(Dataset):
                 features.append(np.fromstring(tokens[1], sep=" "))
                 labels.append(int(tokens[2].strip()))
 
-        return np.array(times), np.array(features), np.array(labels)
+        return np.pad(np.array(times),  (self.max_ts_size-len(labels), 0), "edge"), \
+            np.pad(features, ((self.max_ts_size-len(labels), 0), (0, 0)), "edge"), \
+            np.pad(np.array(labels), (self.max_ts_size-len(labels), 0), "edge")
 
     @staticmethod
     def plot(times, features, labels):

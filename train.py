@@ -22,9 +22,9 @@ def run_epoch(model, train_iterator, val_iterator, epoch):
         x_times, x_features, x_labels = batch
         if torch.cuda.is_available():
             x_times, x_features, x_labels = x_times.cuda(), x_features.cuda(), x_labels.cuda()
-            y = (x_labels[:, -1] - 1).type(torch.cuda.LongTensor)
+            y = (x_labels[:, -1]).type(torch.cuda.LongTensor)
         else:
-            y = (x_labels[:, -1] - 1).type(torch.LongTensor)
+            y = (x_labels[:, -1]).type(torch.LongTensor)
         y_pred = model(x_times, x_features)
         loss = model.loss_op(y_pred, y)
         loss.backward()
@@ -46,7 +46,7 @@ def run_epoch(model, train_iterator, val_iterator, epoch):
     return train_losses, val_accuracies
 
 
-def train(train_dataset, test_dataset, val_dataset=None, model_cls=CNN, config=CNNConfig()):
+def train(train_dataset, test_dataset=None, val_dataset=None, model_cls=CNN, config=CNNConfig()):
 
     if not val_dataset:
         size = len(train_dataset)
@@ -55,12 +55,12 @@ def train(train_dataset, test_dataset, val_dataset=None, model_cls=CNN, config=C
         train_dataset, val_dataset = torch.utils.data.random_split(train_dataset, [train_size, val_size])
 
     print("Loaded {} training examples".format(len(train_dataset)))
-    print("Loaded {} test examples".format(len(test_dataset)))
+    if test_dataset is not None:
+        print("Loaded {} test examples".format(len(test_dataset)))
     print("Loaded {} validation examples".format(len(val_dataset)))
 
     train_dataset_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
     val_dataset_loader = DataLoader(val_dataset, batch_size=config.batch_size, shuffle=True)
-    test_dataset_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True)
 
     model = model_cls(config)
     if torch.cuda.is_available():
@@ -82,11 +82,13 @@ def train(train_dataset, test_dataset, val_dataset=None, model_cls=CNN, config=C
 
     train_acc = evaluate(model, train_dataset_loader)
     val_acc = evaluate(model, val_dataset_loader)
-    test_acc = evaluate(model, test_dataset_loader)
 
     print('Final Training Accuracy: {:.4f}'.format(train_acc))
     print('Final Validation Accuracy: {:.4f}'.format(val_acc))
-    print('Final Test Accuracy: {:.4f}'.format(test_acc))
+    if test_dataset is not None:
+        test_dataset_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True)
+        test_acc = evaluate(model, test_dataset_loader)
+        print('Final Test Accuracy: {:.4f}'.format(test_acc))
 
 
 def evaluate(model, iterator):
@@ -97,7 +99,7 @@ def evaluate(model, iterator):
         if torch.cuda.is_available():
             x_times, x_features, x_labels = x_times.cuda(), x_features.cuda(), x_labels.cuda()
         y_pred = model(x_times, x_features)
-        predicted = torch.max(y_pred.cpu().data, 1)[1] + 1
+        predicted = torch.max(y_pred.cpu().data, 1)[1]
         all_preds.extend(predicted.numpy())
         all_y.extend(x_labels[:, -1].cpu().data.numpy())
     score = accuracy_score(all_y, np.array(all_preds).flatten())

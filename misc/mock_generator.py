@@ -4,7 +4,7 @@ import random
 
 
 def generate_sine_waves(output_dir, size, dim, num):
-    label_array = [1, 2, 3, 4, 5]
+    label_array = range(5)
     interval = 0.05
 
     for idx in range(size):
