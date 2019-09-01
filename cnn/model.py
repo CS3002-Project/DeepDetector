@@ -1,5 +1,5 @@
 from torch import nn
-from utils.utils import *
+import torch
 
 
 class CNN(nn.Module):
@@ -42,8 +42,8 @@ class CNN(nn.Module):
         # Softmax non-linearity
         self.softmax = nn.Softmax(dim=1)
 
-    def forward(self, x_features):
-        embedded_features = x_features.reshape(x_features.size()[0], 1, self.config.max_sen_len).float()
+    def forward(self, times, x_features):
+        embedded_features = x_features.permute(0, 2, 1).float()
         read_out = self.forward_single(embedded_features)
         output = self.softmax(read_out)
         return output

@@ -1,12 +1,16 @@
 from train import train
-from misc import generate_sine_wave
+from misc import generate_sine_waves
 from cnn import CNN, Config as CNNConfig
 from lstm import LSTM, Config as LSTMConfig
+from utils import TimeSeries
 
 if __name__ == "__main__":
-	generate_sine_wave("data/data.train", 1000)
-	generate_sine_wave("data/data.test", 100)
+	generate_sine_waves("data/sine_waves/train", size=1000, dim=5, num=30)
+	generate_sine_waves("data/sine_waves/test", size=10, dim=5, num=30)
+	train_time_series_data = TimeSeries("data/sine_waves/train")
+	test_time_series_data = TimeSeries("data/sine_waves/test")
+	# TimeSeries.plot(*train_time_series_data[2])
 	print("-" * 5 + "CNN" + "-" * 5)
-	train(model_cls=CNN, config=CNNConfig)
+	train(train_dataset=train_time_series_data, test_dataset=test_time_series_data, model_cls=CNN, config=CNNConfig)
 	print("-" * 5 + "LSTM" + "-" * 5)
-	train(model_cls=LSTM, config=LSTMConfig)
+	train(train_dataset=train_time_series_data, test_dataset=test_time_series_data, model_cls=LSTM, config=LSTMConfig)

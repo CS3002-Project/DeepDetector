@@ -1,9 +1,11 @@
 from cnn.config import Config as CNNConfig
 from cnn.model import *
-from utils.utils import *
+import numpy as np
+from sklearn.metrics import accuracy_score
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
+from utils import TimeSeries
 
 
 def run_epoch(model, train_iterator, val_iterator, epoch):
@@ -17,14 +19,13 @@ def run_epoch(model, train_iterator, val_iterator, epoch):
 
     for i, batch in enumerate(train_iterator):
         model.optimizer.zero_grad()
+        x_times, x_features, x_labels = batch
         if torch.cuda.is_available():
-            x_features, x_labels = batch
-            x_features, x_labels = x_features.cuda(), x_labels.cuda()
-            y = (x_labels - 1).type(torch.cuda.LongTensor)
+            x_times, x_features, x_labels = x_times.cuda(), x_features.cuda(), x_labels.cuda()
+            y = (x_labels[:, -1] - 1).type(torch.cuda.LongTensor)
         else:
-            x_features, x_labels = batch
-            y = (x_labels - 1).type(torch.LongTensor)
-        y_pred = model(x_features)
+            y = (x_labels[:, -1] - 1).type(torch.LongTensor)
+        y_pred = model(x_times, x_features)
         loss = model.loss_op(y_pred, y)
         loss.backward()
         losses.append(loss.data.cpu().numpy())
@@ -38,21 +39,16 @@ def run_epoch(model, train_iterator, val_iterator, epoch):
             losses = []
 
             # Evalute Accuracy on validation set
-            val_accuracy = evaluate_model(model, val_iterator)
+            val_accuracy = evaluate(model, val_iterator)
             print("\tVal Accuracy: {:.4f}".format(val_accuracy))
             model.train()
 
     return train_losses, val_accuracies
 
 
-def train(train_file="data/data.train", test_file="data/data.test", val_file=None, model_cls=CNN, config=CNNConfig()):
+def train(train_dataset, test_dataset, val_dataset=None, model_cls=CNN, config=CNNConfig()):
 
-    train_dataset = TimeSeries(train_file)
-    test_dataset = TimeSeries(test_file)
-
-    if val_file:
-        val_dataset = TimeSeries(val_file)
-    else:
+    if not val_dataset:
         size = len(train_dataset)
         train_size = int(size * config.split_ratio)
         val_size = size - train_size
@@ -84,10 +80,25 @@ def train(train_file="data/data.train", test_file="data/data.test", val_file=Non
         train_losses.append(train_loss)
         val_accuracies.append(val_accuracy)
 
-    train_acc = evaluate_model(model, train_dataset_loader)
-    val_acc = evaluate_model(model, val_dataset_loader)
-    test_acc = evaluate_model(model, test_dataset_loader)
+    train_acc = evaluate(model, train_dataset_loader)
+    val_acc = evaluate(model, val_dataset_loader)
+    test_acc = evaluate(model, test_dataset_loader)
 
     print('Final Training Accuracy: {:.4f}'.format(train_acc))
     print('Final Validation Accuracy: {:.4f}'.format(val_acc))
     print('Final Test Accuracy: {:.4f}'.format(test_acc))
+
+
+def evaluate(model, iterator):
+    all_preds = []
+    all_y = []
+    for idx, batch in enumerate(iterator):
+        x_times, x_features, x_labels = batch
+        if torch.cuda.is_available():
+            x_times, x_features, x_labels = x_times.cuda(), x_features.cuda(), x_labels.cuda()
+        y_pred = model(x_times, x_features)
+        predicted = torch.max(y_pred.cpu().data, 1)[1] + 1
+        all_preds.extend(predicted.numpy())
+        all_y.extend(x_labels[:, -1].cpu().data.numpy())
+    score = accuracy_score(all_y, np.array(all_preds).flatten())
+    return score

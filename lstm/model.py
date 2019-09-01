@@ -26,9 +26,9 @@ class LSTM(nn.Module):
         # Softmax non-linearity
         self.softmax = nn.Softmax(dim=1)
 
-    def forward(self, x):
-        x = x.unsqueeze(2).permute(1, 0, 2).float()
-        lstm_out, (h_n, c_n) = self.lstm(x)
+    def forward(self, times,  x_features):
+        x_features = x_features.permute(1, 0, 2).float()
+        lstm_out, (h_n, c_n) = self.lstm(x_features)
         final_feature_map = self.dropout(h_n)  # shape=(num_layers * num_directions, 64, hidden_size)
 
         final_feature_map = torch.cat([final_feature_map[i, :, :] for i in range(final_feature_map.shape[0])], dim=1)
