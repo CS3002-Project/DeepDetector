@@ -1,9 +1,7 @@
 from cnn import CNN, Config as CNNConfig
 from lstm import LSTM, Config as LSTMConfig
 from misc import generate_sine_waves
-from preprocessing import preprocess_real_disp
-from train import train
-from utils import TimeSeries
+from utils import TimeSeries, train
 
 
 def sine_wave_example():
