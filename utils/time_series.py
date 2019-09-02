@@ -22,7 +22,6 @@ class TimeSeries(Dataset):
                 times.append(float(tokens[0]))
                 features.append(np.fromstring(tokens[1], sep=" "))
                 labels.append(int(tokens[2].strip()))
-
         return np.pad(np.array(times),  (self.max_ts_size-len(labels), 0), "edge"), \
             np.pad(features, ((self.max_ts_size-len(labels), 0), (0, 0)), "edge"), \
             np.pad(np.array(labels), (self.max_ts_size-len(labels), 0), "edge")

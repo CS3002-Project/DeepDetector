@@ -15,6 +15,8 @@ def preprocess_real_disp(input_path, output_dir,
     data = []
     with open(input_path, "r") as f:
         for i, line in enumerate(f.readlines()):
+            if i % 1000 == 0:
+                print("Loaded {} Real Disp lines".format(i))
             tokens = line.split("\t")
             if i == 0:
                 start_sec = float(tokens[0]) + float(tokens[1]) / 10.0 ** 6
@@ -27,13 +29,14 @@ def preprocess_real_disp(input_path, output_dir,
             time_stamps.append(time_stamp)
 
     data_size = len(data)
-    print(data[0])
     if data_size > 0:
         sample_indices = []
         interval = time_stamp / data_size
         max_sample_size = int(max_window_sec / interval) + 1
         warm_up_size = int(min_warm_up_sec / interval) + 1
-        for _ in range(num_samples):
+        while len(sample_indices) < num_samples:
+            if len(sample_indices) % 10 == 0:
+                print("Sampled {} Real Disp lines".format(len(sample_indices)))
             start_idx = np.random.randint(low=0, high=data_size-max_sample_size)
             sample_size = np.random.randint(low=1, high=max_sample_size)
             if (start_idx, start_idx+sample_size) not in sample_indices and \

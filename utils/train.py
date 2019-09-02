@@ -1,6 +1,8 @@
 from cnn.config import Config as CNNConfig
 from cnn.model import *
+from collections import Counter
 import numpy as np
+import os
 from prettytable import PrettyTable
 from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
 import torch
@@ -46,7 +48,12 @@ def run_epoch(model, train_iterator, val_iterator, epoch):
     return train_losses, val_accuracies
 
 
-def train(train_dataset, test_dataset=None, val_dataset=None, model_cls=CNN, config=CNNConfig()):
+def unbalanced_ce_weights(num_labels, coeff):
+    weight_0 = 1. / ((coeff * (num_labels-1))+1)
+    return torch.cuda.FloatTensor([weight_0] + [weight_0 * coeff] * (num_labels-1))
+
+
+def train(train_dataset, eval_out_dir, test_dataset=None, val_dataset=None, model_cls=CNN, config=CNNConfig()):
 
     if not val_dataset:
         size = len(train_dataset)
@@ -67,7 +74,7 @@ def train(train_dataset, test_dataset=None, val_dataset=None, model_cls=CNN, con
         model.cuda()
     model.train()
     optimizer = optim.SGD(model.parameters(), lr=config.lr)
-    NLLLoss = nn.NLLLoss()
+    NLLLoss = nn.CrossEntropyLoss(weight=unbalanced_ce_weights(config.output_size, 10))
     model.add_optimizer(optimizer)
     model.add_loss_op(NLLLoss)
 
@@ -80,8 +87,8 @@ def train(train_dataset, test_dataset=None, val_dataset=None, model_cls=CNN, con
         train_losses.append(train_loss)
         val_accuracies.append(val_accuracy)
 
-    train_evaluation_output = "train_evaluation.csv"
-    validate_evaluation_output = "validate_evaluation.csv"
+    train_evaluation_output = os.path.join(eval_out_dir, "train_evaluation.csv")
+    validate_evaluation_output = os.path.join(eval_out_dir, "validate_evaluation.csv")
     evaluate(model, train_dataset_loader, train_evaluation_output)
     evaluate(model, val_dataset_loader, validate_evaluation_output)
 
@@ -89,7 +96,7 @@ def train(train_dataset, test_dataset=None, val_dataset=None, model_cls=CNN, con
     print('Validation evaluation saved to {}'.format(validate_evaluation_output))
     if test_dataset is not None:
         test_dataset_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True)
-        test_evaluation_output = "test_evaluation.csv"
+        test_evaluation_output = os.path.join(eval_out_dir, "test_evaluation.csv")
         evaluate(model, test_dataset_loader, test_evaluation_output)
         print('Test evaluation saved to {}'.format(test_evaluation_output))
 
@@ -147,17 +154,18 @@ def evaluate_multi_class(y_preds, y_truths, output_result=None):
         "idx2label": idx2label
     }
 
-    header = ["label", "accuracy", "precision", "recall", "f1"]
+    label_count = Counter(y_truths)
+    header = ["label", "accuracy", "precision", "recall", "f1", "count"]
     csv_content = []
     table = PrettyTable(header)
 
     for label, idx in label2idx.items():
         row = [label, "", str(individual_precision[idx]), str(individual_recall[idx]),
-               str(individual_f1[idx])]
+               str(individual_f1[idx]), label_count[label]]
         table.add_row(row)
         csv_content.append(row)
-    macro_row = ["macro", accuracy, macro_precision, macro_recall, macro_f1]
-    micro_row = ["micro", "", micro_precision, micro_recall, micro_f1]
+    macro_row = ["macro", accuracy, macro_precision, macro_recall, macro_f1, ""]
+    micro_row = ["micro", "", micro_precision, micro_recall, micro_f1, ""]
     table.add_row(macro_row)
     table.add_row(micro_row)
     csv_content.append(macro_row)
