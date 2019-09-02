@@ -40,7 +40,7 @@ def run_epoch(model, train_iterator, val_iterator, epoch):
             losses = []
 
             # Evalute Accuracy on validation set
-            val_accuracy = evaluate(model, val_iterator)
+            evaluate(model, val_iterator)
             model.train()
 
     return train_losses, val_accuracies
