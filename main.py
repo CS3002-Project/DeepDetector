@@ -19,7 +19,7 @@ def sine_wave_example():
 
 
 def real_disp():
-	preprocess_real_disp("data/real_disp/subject3_ideal.log", "data/real_disp/processed", 100)
+	# preprocess_real_disp("data/real_disp/subject3_ideal.log", "data/real_disp/processed", 1000)
 	train_real_disp_data = TimeSeries("data/real_disp/processed", max_ts_size=400)
 	train(train_dataset=train_real_disp_data, model_cls=CNN, config=CNNConfig)
 	train(train_dataset=train_real_disp_data, model_cls=LSTM, config=LSTMConfig)

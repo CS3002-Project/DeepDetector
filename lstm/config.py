@@ -3,7 +3,7 @@ class Config(object):
     hidden_layers = 2
     hidden_size = 128
     bidirectional = True
-    output_size = 33
+    output_size = 34
     max_epochs = 30
     lr = 0.25
     batch_size = 64

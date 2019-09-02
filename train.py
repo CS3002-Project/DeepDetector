@@ -24,7 +24,7 @@ def run_epoch(model, train_iterator, val_iterator, epoch):
             x_times, x_features, x_labels = x_times.cuda(), x_features.cuda(), x_labels.cuda()
             y = (x_labels[:, -1]).type(torch.cuda.LongTensor)
         else:
-            y = (x_labels[:, -1]).type(torch.LongTensor)
+            y = (x_labels[:, -1]).type(torch.LongTensor) 
         y_pred = model(x_times, x_features)
         loss = model.loss_op(y_pred, y)
         loss.backward()

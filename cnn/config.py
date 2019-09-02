@@ -2,7 +2,7 @@ class Config(object):
     embed_size = 117
     num_channels = 30
     kernel_size = [3, 6, 12, 24]
-    output_size = 33
+    output_size = 34
     max_epochs = 30
     lr = 0.3
     batch_size = 64
