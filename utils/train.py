@@ -41,7 +41,6 @@ def run_epoch(model, train_iterator, val_iterator, epoch):
 
             # Evalute Accuracy on validation set
             val_accuracy = evaluate(model, val_iterator)
-            print("\tVal Accuracy: {:.4f}".format(val_accuracy))
             model.train()
 
     return train_losses, val_accuracies
@@ -95,7 +94,7 @@ def train(train_dataset, test_dataset=None, val_dataset=None, model_cls=CNN, con
         print('Test evaluation saved to {}'.format(test_evaluation_output))
 
 
-def evaluate(model, iterator, output_result):
+def evaluate(model, iterator, output_result=None):
     y_preds = []
     y_truths = []
     for idx, batch in enumerate(iterator):
@@ -109,7 +108,7 @@ def evaluate(model, iterator, output_result):
     evaluate_multi_class(y_preds, y_truths, output_result)
 
 
-def evaluate_multi_class(y_preds, y_truths, output_result):
+def evaluate_multi_class(y_preds, y_truths, output_result=None):
     pred_labels = set(y_preds)
     true_labels = set(y_truths)
     all_labels = pred_labels.union(true_labels)
@@ -163,5 +162,6 @@ def evaluate_multi_class(y_preds, y_truths, output_result):
     table.add_row(micro_row)
     csv_content.append(macro_row)
     csv_content.append(micro_row)
-    write_csv(csv_content, header, output_result)
+    if output_result is not None:
+        write_csv(csv_content, header, output_result)
     print(table)
