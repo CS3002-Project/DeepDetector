@@ -74,7 +74,7 @@ def train(train_dataset, eval_out_dir, test_dataset=None, val_dataset=None, mode
         model.cuda()
     model.train()
     optimizer = optim.SGD(model.parameters(), lr=config.lr)
-    NLLLoss = nn.CrossEntropyLoss(weight=unbalanced_ce_weights(config.output_size, 10))
+    NLLLoss = nn.CrossEntropyLoss(weight=unbalanced_ce_weights(config.output_size, 5))
     model.add_optimizer(optimizer)
     model.add_loss_op(NLLLoss)
 

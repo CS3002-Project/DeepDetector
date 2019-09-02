@@ -40,7 +40,7 @@ def preprocess_real_disp(input_path, output_dir,
             start_idx = np.random.randint(low=0, high=data_size-max_sample_size)
             sample_size = np.random.randint(low=1, high=max_sample_size)
             if (start_idx, start_idx+sample_size) not in sample_indices and \
-                    data[start_idx][2] == data[start_idx+warm_up_size][2]:
+                    data[start_idx+sample_size-warm_up_size][2] == data[start_idx+sample_size][2]:
                 sample_indices.append((start_idx, start_idx+sample_size))
 
         for sample_idx, (start_idx, end_idx) in enumerate(sample_indices):
