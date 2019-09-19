@@ -28,6 +28,7 @@ class TimeSeries(Dataset):
 
     @staticmethod
     def plot(times, features, labels):
+        times = ["{0:.2f}".format(float(t)) for t in times]
         features = list(features.T)
         args = []
         for dim_values in features:

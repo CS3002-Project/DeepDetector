@@ -2,7 +2,9 @@ from cnn import CNN, Config as CNNConfig
 from lstm import LSTM, Config as LSTMConfig
 from misc import generate_sine_waves
 from utils import TimeSeries, train
-from preprocessing import preprocess_real_disp
+from preprocessing import preprocess_real_disp, extract_real_disp_features, feature_analysis, \
+    plot_feature_importance, visualize_example
+import pickle
 
 
 def sine_wave_example():
@@ -25,6 +27,20 @@ def real_disp():
     train(train_dataset=train_real_disp_data, eval_out_dir="training/real_disp/lstm", model_cls=LSTM, config=LSTMConfig)
 
 
+def analyse_real_disp():
+    # extract_real_disp_features(
+    #     input_dir="data/real_disp/processed",
+    #     output_dir="data/real_disp/extracted",
+    #     channel_size=5,
+    #     padding=2
+    # )
+    # feature_analysis(input_dir="data/real_disp/extracted", output_dir="data/real_disp/analysis")
+    # with open("data/real_disp/analysis/label_stats.pickle", "rb") as f:
+    #     label_stats = pickle.load(f)
+    # plot_feature_importance(output_dir="data/real_disp/analysis", label_stats=label_stats)
+    visualize_example("data/real_disp/extracted/2.txt", feature_nums=[0, 1, 2], windows=5)
+
+
 if __name__ == "__main__":
     # sine_wave_example()
-    real_disp()
+    analyse_real_disp()
