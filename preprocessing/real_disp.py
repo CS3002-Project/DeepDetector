@@ -6,14 +6,19 @@ import matplotlib.pyplot as plt
 from utils import TimeSeries
 
 
-def visualize_example(input_path, feature_nums, windows):
-    times, features, labels = load_all_features(input_path)
+def select_features(times, features, labels, feature_nums):
     selected_features = []
     for feature in features:
         selected_feature = []
         for n in feature_nums:
             selected_feature.append(feature[n])
         selected_features.append(selected_feature)
+    return times, selected_features, labels
+
+
+def visualize_example(input_path, feature_nums, windows):
+    times, features, labels = load_all_features(input_path)
+    times, selected_features, labels = select_features(times, features, labels, feature_nums)
     TimeSeries.plot(times[:windows], np.array(selected_features[:windows]), labels[:windows])
 
 
@@ -26,6 +31,13 @@ def load_all_features(input_path):
             features.append(np.fromstring(tokens[1], sep=" "))
             labels.append(tokens[2].strip())
     return times, features, labels
+
+
+def save_all_features(output_path, extracted_times, extracted_features, extracted_labels):
+    with open(output_path, "w") as f:
+        for i in range(len(extracted_features)):
+            f.writelines("\t".join([extracted_times[i], " ".join([str(v) for v in extracted_features[i]]),
+                                    extracted_labels[i]]) + "\n")
 
 
 def extract_mean(channel_features):
@@ -55,10 +67,10 @@ def extract_average_amplitude_change(channel_features):
     return np.mean(amplitude_changes, axis=0)
 
 
-def _extract_features(times, features, labels, channel_size, padding):
+def _expand_features(times, features, labels, channel_size, padding):
     extracted_times, extracted_features, extracted_labels = [], [], []
     index = 0
-    while (index + channel_size) < len(features):
+    while index + channel_size < len(features):
         channel_features = features[index: (index+channel_size)]
         mean = extract_mean(channel_features)
         variance = extract_variance(channel_features)
@@ -66,24 +78,31 @@ def _extract_features(times, features, labels, channel_size, padding):
         skewness = extract_skewness(channel_features)
         average_amplitude_change = extract_average_amplitude_change(channel_features)
         feature_vector = np.concatenate([mean, variance, poly_fit, skewness, average_amplitude_change])
-        extracted_times.append(times[index + channel_size])
+        extracted_times.append(times[index + channel_size-1])
         extracted_features.append(feature_vector)
-        extracted_labels.append(labels[index + channel_size])
+        extracted_labels.append(labels[index + channel_size-1])
         index += padding
     return extracted_times, extracted_features, extracted_labels
 
 
-def extract_real_disp_features(input_dir, output_dir, channel_size=5, padding=2):
+def expand_real_disp_features(input_dir, output_dir, channel_size=5, padding=2):
+    for file_name in os.listdir(input_dir):
+        print(file_name)
+        input_path = os.path.join(input_dir, file_name)
+        times, features, labels = load_all_features(input_path)
+        extracted_times, extracted_features, extracted_labels = _expand_features(times, features,
+                                                                                 labels, channel_size, padding)
+        output_path = os.path.join(output_dir, file_name)
+        save_all_features(output_path, extracted_times, extracted_features, extracted_labels)
+
+
+def extract_real_disp_features(input_dir, output_dir, feature_nums):
     for file_name in os.listdir(input_dir):
         input_path = os.path.join(input_dir, file_name)
         times, features, labels = load_all_features(input_path)
-        extracted_times, extracted_features, extracted_labels = _extract_features(times, features,
-                                                                                  labels, channel_size, padding)
+        times, selected_features, labels = select_features(times, features, labels, feature_nums)
         output_path = os.path.join(output_dir, file_name)
-        with open(output_path, "w") as f:
-            for i in range(len(extracted_features)):
-                f.writelines("\t".join([extracted_times[i], " ".join([str(v) for v in extracted_features[i]]),
-                                        extracted_labels[i]]) + "\n")
+        save_all_features(output_path, times, selected_features, labels)
 
 
 def extract_label_stats(label_dict):
@@ -126,7 +145,8 @@ def feature_analysis(input_dir, output_dir):
         pickle.dump(label_stats, f)
 
 
-def plot_feature_importance(output_dir, label_stats):
+def plot_feature_importance(output_dir, label_stats, num_feature_per_label=2):
+    most_important_features = set()
     for label, values in label_stats.items():
         print(label)
         mean_positive_val, variance_positive_val = values[1][0], values[1][1]
@@ -144,6 +164,7 @@ def plot_feature_importance(output_dir, label_stats):
             final_ranking[feature_idx] = mean_margin_rank + variance_margin_rank
         final_ranking = final_ranking.argsort()
         print("Top 10 most important features for label {} are {}".format(label, final_ranking[:10]))
+        most_important_features.update(set(final_ranking[:num_feature_per_label]))
 
         plt.rcdefaults()
         feature_num = np.arange(len(mean_positive_val))
@@ -170,6 +191,7 @@ def plot_feature_importance(output_dir, label_stats):
         plt.clf()
         plt.cla()
         plt.close()
+    print("Overall most important features {}".format(most_important_features))
 
 
 def preprocess_real_disp(input_path, output_dir,

@@ -4,7 +4,7 @@ from collections import Counter
 import numpy as np
 import os
 from prettytable import PrettyTable
-from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
+from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score, confusion_matrix
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
@@ -50,7 +50,9 @@ def run_epoch(model, train_iterator, val_iterator, epoch):
 
 def unbalanced_ce_weights(num_labels, coeff):
     weight_0 = 1. / ((coeff * (num_labels-1))+1)
-    return torch.cuda.FloatTensor([weight_0] + [weight_0 * coeff] * (num_labels-1))
+    if torch.cuda.is_available():
+        return torch.cuda.FloatTensor([weight_0] + [weight_0 * coeff] * (num_labels-1))
+    return torch.FloatTensor([weight_0] + [weight_0 * coeff] * (num_labels-1))
 
 
 def train(train_dataset, eval_out_dir, test_dataset=None, val_dataset=None, model_cls=CNN, config=CNNConfig()):
@@ -89,8 +91,10 @@ def train(train_dataset, eval_out_dir, test_dataset=None, val_dataset=None, mode
 
     train_evaluation_output = os.path.join(eval_out_dir, "train_evaluation.csv")
     validate_evaluation_output = os.path.join(eval_out_dir, "validate_evaluation.csv")
-    evaluate(model, train_dataset_loader, train_evaluation_output)
-    evaluate(model, val_dataset_loader, validate_evaluation_output)
+    train_confusion_output = os.path.join(eval_out_dir, "train_confusion.csv")
+    validate_confusion_output = os.path.join(eval_out_dir, "validate_confusion.csv")
+    evaluate(model, train_dataset_loader, train_evaluation_output, train_confusion_output)
+    evaluate(model, val_dataset_loader, validate_evaluation_output, validate_confusion_output)
 
     print('Training evaluation saved to {}'.format(train_evaluation_output))
     print('Validation evaluation saved to {}'.format(validate_evaluation_output))
@@ -101,7 +105,7 @@ def train(train_dataset, eval_out_dir, test_dataset=None, val_dataset=None, mode
         print('Test evaluation saved to {}'.format(test_evaluation_output))
 
 
-def evaluate(model, iterator, output_result=None):
+def evaluate(model, iterator, output_metrics_result=None, output_confusion_result=None):
     y_preds = []
     y_truths = []
     for idx, batch in enumerate(iterator):
@@ -112,10 +116,10 @@ def evaluate(model, iterator, output_result=None):
         predicted = torch.max(y_pred.cpu().data, 1)[1]
         y_preds.extend(predicted.numpy())
         y_truths.extend(x_labels[:, -1].cpu().data.numpy())
-    evaluate_multi_class(y_preds, y_truths, output_result)
+    evaluate_multi_class(y_preds, y_truths, output_metrics_result, output_confusion_result)
 
 
-def evaluate_multi_class(y_preds, y_truths, output_result=None):
+def evaluate_multi_class(y_preds, y_truths, output_metrics_result=None, output_confusion_result=None):
     pred_labels = set(y_preds)
     true_labels = set(y_truths)
     all_labels = pred_labels.union(true_labels)
@@ -139,6 +143,7 @@ def evaluate_multi_class(y_preds, y_truths, output_result=None):
     macro_precision = precision_score(truths, preds, average="macro")
     macro_recall = recall_score(truths, preds, average="macro")
     macro_f1 = f1_score(truths, preds, average="macro")
+    eval_confusion_matrix = confusion_matrix(y_truths, y_preds, labels=list(all_labels))
     result = {
         "accuracy": accuracy,
         "individual_precision": individual_precision,
@@ -151,25 +156,43 @@ def evaluate_multi_class(y_preds, y_truths, output_result=None):
         "macro_recall": macro_recall,
         "macro_f1": macro_f1,
         "label2idx": label2idx,
-        "idx2label": idx2label
+        "idx2label": idx2label,
+        "confusion_matrix": eval_confusion_matrix
     }
 
     label_count = Counter(y_truths)
     header = ["label", "accuracy", "precision", "recall", "f1", "count"]
-    csv_content = []
-    table = PrettyTable(header)
+    csv_metrics_content = []
+    metrics_table = PrettyTable(header)
 
     for label, idx in label2idx.items():
         row = [label, "", str(individual_precision[idx]), str(individual_recall[idx]),
                str(individual_f1[idx]), label_count[label]]
-        table.add_row(row)
-        csv_content.append(row)
+        metrics_table.add_row(row)
+        csv_metrics_content.append(row)
     macro_row = ["macro", accuracy, macro_precision, macro_recall, macro_f1, ""]
     micro_row = ["micro", "", micro_precision, micro_recall, micro_f1, ""]
-    table.add_row(macro_row)
-    table.add_row(micro_row)
-    csv_content.append(macro_row)
-    csv_content.append(micro_row)
-    if output_result is not None:
-        write_csv(csv_content, header, output_result)
-    print(table)
+    metrics_table.add_row(macro_row)
+    metrics_table.add_row(micro_row)
+    csv_metrics_content.append(macro_row)
+    csv_metrics_content.append(micro_row)
+    if output_metrics_result is not None:
+        write_csv(csv_metrics_content, header, output_metrics_result)
+
+    csv_confusion_content = []
+    sorted_all_labels = sorted(list(all_labels))
+    confusion_header = ["truth \\ prediction"] + sorted_all_labels
+    confusion_table = PrettyTable(confusion_header)
+    for i, class_row in enumerate(eval_confusion_matrix):
+        row = [sorted_all_labels[i]]
+        row.extend(class_row)
+        confusion_table.add_row(row)
+        csv_confusion_content.append(row)
+
+    if output_confusion_result is not None:
+        write_csv(csv_confusion_content, header, output_confusion_result)
+
+    print("Metric table")
+    print(metrics_table)
+    print("Confusion matrix")
+    print(confusion_table)
