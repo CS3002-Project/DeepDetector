@@ -3,6 +3,11 @@ from torch import nn
 
 
 class LSTM(nn.Module):
+
+    @classmethod
+    def name(cls):
+        return "lstm"
+
     def __init__(self, config):
         super(LSTM, self).__init__()
         self.config = config

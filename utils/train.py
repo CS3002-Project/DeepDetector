@@ -9,6 +9,7 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from utils import write_csv
+from torch.utils.tensorboard import SummaryWriter
 
 
 def run_epoch(model, train_iterator, val_iterator, epoch):
@@ -55,7 +56,23 @@ def unbalanced_ce_weights(num_labels, coeff):
     return torch.FloatTensor([weight_0] + [weight_0 * coeff] * (num_labels-1))
 
 
-def train(train_dataset, eval_out_dir, test_dataset=None, val_dataset=None, model_cls=CNN, config=CNNConfig()):
+def write_results(eval_results, writer, name_space, epoch, loss=None):
+    out_results = {
+        "macro_f1": eval_results["macro_f1"],
+        "macro_precision": eval_results["macro_precision"],
+        "macro_recall": eval_results["macro_recall"],
+        "accuracy": eval_results["accuracy"]
+    }
+    if loss is not None:
+        out_results["loss"] = sum(loss)
+    writer.add_scalars(name_space, out_results, epoch)
+
+
+def train(train_dataset, eval_out_dir, test_dataset=None, val_dataset=None, model_cls=CNN, config=CNNConfig(),
+          log_dir="exp_log"):
+    exp_name = model_cls.name()
+    evaluate_per_epoch = 2
+    writer = SummaryWriter(os.path.join(log_dir, exp_name))
 
     if not val_dataset:
         size = len(train_dataset)
@@ -83,18 +100,22 @@ def train(train_dataset, eval_out_dir, test_dataset=None, val_dataset=None, mode
     train_losses = []
     val_accuracies = []
 
-    for i in range(config.max_epochs):
-        print("Epoch: {}".format(i))
-        train_loss, val_accuracy = run_epoch(model, train_dataset_loader, val_dataset_loader, i)
-        train_losses.append(train_loss)
-        val_accuracies.append(val_accuracy)
-
     train_evaluation_output = os.path.join(eval_out_dir, "train_evaluation.csv")
     validate_evaluation_output = os.path.join(eval_out_dir, "validate_evaluation.csv")
     train_confusion_output = os.path.join(eval_out_dir, "train_confusion.csv")
     validate_confusion_output = os.path.join(eval_out_dir, "validate_confusion.csv")
-    evaluate(model, train_dataset_loader, train_evaluation_output, train_confusion_output)
-    evaluate(model, val_dataset_loader, validate_evaluation_output, validate_confusion_output)
+
+    for epoch in range(config.max_epochs):
+        print("Epoch: {}".format(epoch))
+        train_loss, val_accuracy = run_epoch(model, train_dataset_loader, val_dataset_loader, epoch)
+        train_losses.append(train_loss)
+        val_accuracies.append(val_accuracy)
+        train_results = evaluate(model, train_dataset_loader, train_evaluation_output, train_confusion_output)
+        write_results(train_results, writer, "train", epoch, train_loss)
+
+        if epoch % evaluate_per_epoch == 0:
+            eval_results = evaluate(model, val_dataset_loader, validate_evaluation_output, validate_confusion_output)
+            write_results(eval_results, writer, "eval", epoch)
 
     print('Training evaluation saved to {}'.format(train_evaluation_output))
     print('Validation evaluation saved to {}'.format(validate_evaluation_output))
@@ -108,15 +129,21 @@ def train(train_dataset, eval_out_dir, test_dataset=None, val_dataset=None, mode
 def evaluate(model, iterator, output_metrics_result=None, output_confusion_result=None):
     y_preds = []
     y_truths = []
+    example_feature, example_pred = None, None
     for idx, batch in enumerate(iterator):
         x_times, x_features, x_labels = batch
         if torch.cuda.is_available():
             x_times, x_features, x_labels = x_times.cuda(), x_features.cuda(), x_labels.cuda()
         y_pred = model(x_times, x_features)
         predicted = torch.max(y_pred.cpu().data, 1)[1]
+        if example_feature is None and example_pred is None:
+            example_feature, example_pred = x_features, predicted
         y_preds.extend(predicted.numpy())
         y_truths.extend(x_labels[:, -1].cpu().data.numpy())
-    evaluate_multi_class(y_preds, y_truths, output_metrics_result, output_confusion_result)
+    print("Example-----")
+    print("-----Feature: {}".format(example_feature))
+    print("-----Prediction: {}".format(example_pred))
+    return evaluate_multi_class(y_preds, y_truths, output_metrics_result, output_confusion_result)
 
 
 def evaluate_multi_class(y_preds, y_truths, output_metrics_result=None, output_confusion_result=None):
@@ -144,7 +171,7 @@ def evaluate_multi_class(y_preds, y_truths, output_metrics_result=None, output_c
     macro_recall = recall_score(truths, preds, average="macro")
     macro_f1 = f1_score(truths, preds, average="macro")
     eval_confusion_matrix = confusion_matrix(y_truths, y_preds, labels=list(all_labels))
-    result = {
+    results = {
         "accuracy": accuracy,
         "individual_precision": individual_precision,
         "individual_recall": individual_recall,
@@ -196,3 +223,5 @@ def evaluate_multi_class(y_preds, y_truths, output_metrics_result=None, output_c
     print(metrics_table)
     print("Confusion matrix")
     print(confusion_table)
+
+    return results

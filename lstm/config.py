@@ -4,7 +4,7 @@ class Config(object):
     hidden_size = 128
     bidirectional = True
     output_size = 34
-    max_epochs = 10
+    max_epochs = 100
     lr = 0.25
     batch_size = 64
     max_sen_len = 700

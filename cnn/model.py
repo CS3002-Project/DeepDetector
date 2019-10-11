@@ -3,6 +3,11 @@ import torch
 
 
 class CNN(nn.Module):
+
+    @classmethod
+    def name(cls):
+        return "cnn"
+
     def __init__(self, config):
         super(CNN, self).__init__()
         self.config = config

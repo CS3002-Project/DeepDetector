@@ -3,7 +3,7 @@ class Config(object):
     num_channels = 30
     kernel_size = [3, 6, 12, 24]
     output_size = 34
-    max_epochs = 10
+    max_epochs = 100
     lr = 0.3
     batch_size = 64
     max_sen_len = 700
